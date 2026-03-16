@@ -362,6 +362,7 @@ body {
     align-items: center;
     justify-content: space-between;
     transition: border-color 150ms ease, box-shadow 150ms ease;
+    cursor: pointer;
 }
 
 .rule-card:hover {
@@ -980,6 +981,16 @@ body {
     cursor: pointer;
 }
 
+.form-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    background: rgba(255, 107, 53, 0.08);
+    border-radius: var(--radius-sm);
+    border-left: 3px solid var(--accent-hot);
+}
+
 .modal-footer {
     padding: 0 20px 20px;
     display: flex;
@@ -1121,6 +1132,25 @@ input[type="checkbox"] {
 
 .rule-toggle.active {
     color: var(--accent-cool);
+}
+
+.rule-test {
+    background: var(--bg-subtle);
+    border: none;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 150ms ease;
+}
+
+.rule-test:hover {
+    background: var(--accent-hot);
+    color: white;
 }
 
 .detail-panel {

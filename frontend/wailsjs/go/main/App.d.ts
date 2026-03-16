@@ -26,4 +26,8 @@ export function RemoveAutoKillRule(arg1:string):Promise<boolean>;
 
 export function SearchProcesses(arg1:string):Promise<Array<main.ProcessInfo>>;
 
+export function TestAutoKillRule(arg1:string,arg2:boolean):Promise<Array<main.ProcessInfo>>;
+
 export function ToggleAutoKillRule(arg1:string,arg2:boolean):Promise<boolean>;
+
+export function UpdateAutoKillRule(arg1:string,arg2:string,arg3:number,arg4:number,arg5:boolean):Promise<boolean>;

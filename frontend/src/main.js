@@ -1,16 +1,18 @@
 import './style.css';
-import { 
-    GetProcesses, 
-    GetSystemStats, 
-    KillProcess, 
+import {
+    GetProcesses,
+    GetSystemStats,
+    KillProcess,
     KillProcesses,
     AddAutoKillRule,
     RemoveAutoKillRule,
     GetAutoKillRules,
     ToggleAutoKillRule,
+    UpdateAutoKillRule,
     CheckAutoKillRules,
     ConfirmKill,
-    ConfirmKillSelected
+    ConfirmKillSelected,
+    TestAutoKillRule
 } from '../wailsjs/go/main/App';
 
 const avatarColors = [
@@ -34,6 +36,7 @@ let refreshInterval = null;
 let sortField = 'cpu';
 let sortAsc = false;
 let currentPage = 1;
+let editingRuleId = null;
 const pageSize = 20;
 
 function getCpuClass(cpu) {
@@ -309,27 +312,44 @@ function renderProcesses(processList) {
 function renderRules() {
     const rulesList = document.getElementById('rulesList');
     if (!rulesList) return;
-    
+
     if (autoKillRules.length === 0) {
         rulesList.innerHTML = '<div class="no-rules">暂无规则</div>';
         return;
     }
-    rulesList.innerHTML = autoKillRules.map(rule => `
-        <div class="rule-card ${rule.enabled ? '' : 'disabled'}" data-id="${rule.id}">
+    rulesList.innerHTML = autoKillRules.map(rule => {
+        let condition = '';
+        if (rule.cpuThreshold > 0 && rule.memThreshold > 0) {
+            condition = `CPU>${rule.cpuThreshold}% 或 内存>${rule.memThreshold}%`;
+        } else if (rule.cpuThreshold > 0) {
+            condition = `CPU > ${rule.cpuThreshold}%`;
+        } else if (rule.memThreshold > 0) {
+            condition = `内存 > ${rule.memThreshold}%`;
+        } else {
+            condition = '匹配即终止';
+        }
+        return `
+        <div class="rule-card ${rule.enabled ? '' : 'disabled'}" onclick="window.editRule('${rule.id}')" data-id="${rule.id}">
             <div class="rule-info">
                 <div class="rule-name">${rule.name}</div>
-                <div class="rule-condition">CPU > ${rule.cpuThreshold}%${rule.memThreshold > 0 ? `, 内存 > ${rule.memThreshold}%` : ''}</div>
+                <div class="rule-condition">${condition}</div>
             </div>
             <div class="rule-actions">
-                <button class="rule-toggle ${rule.enabled ? 'active' : ''}" onclick="window.toggleRuleEnabled('${rule.id}', ${!rule.enabled})" title="${rule.enabled ? '禁用' : '启用'}">
+                <button class="rule-test" onclick="event.stopPropagation(); window.testRuleMatch('${rule.name}', ${rule.exactMatch})" title="测试匹配">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        ${rule.enabled 
+                        <circle cx="11" cy="11" r="8"/>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                </button>
+                <button class="rule-toggle ${rule.enabled ? 'active' : ''}" onclick="event.stopPropagation(); window.toggleRuleEnabled('${rule.id}', ${!rule.enabled})" title="${rule.enabled ? '禁用' : '启用'}">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        ${rule.enabled
                             ? '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'
                             : '<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'
                         }
                     </svg>
                 </button>
-                <button class="rule-delete" onclick="window.removeRule('${rule.id}')" title="删除">
+                <button class="rule-delete" onclick="event.stopPropagation(); window.removeRule('${rule.id}')" title="删除">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="18" y1="6" x2="6" y2="18"/>
                         <line x1="6" y1="6" x2="18" y2="18"/>
@@ -337,7 +357,7 @@ function renderRules() {
                 </button>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 function showProcessDetail(process) {
@@ -427,7 +447,7 @@ function showProcessDetail(process) {
 
 async function runAutoKill() {
     if (!autoKillEnabled) return;
-    
+
     try {
         const killed = await CheckAutoKillRules();
         if (killed && killed.length > 0) {
@@ -439,6 +459,7 @@ async function runAutoKill() {
         }
     } catch (err) {
         console.error('Auto-kill error:', err);
+        showNotification('自动终止出错', err.message || String(err));
     }
 }
 
@@ -591,12 +612,67 @@ window.toggleRuleEnabled = async function(id, enabled) {
     }
 };
 
+window.testRuleMatch = async function(ruleName, exactMatch) {
+    try {
+        const matched = await TestAutoKillRule(ruleName, exactMatch);
+        if (matched && matched.length > 0) {
+            const names = matched.map(p => `${p.name} (CPU: ${p.cpu.toFixed(1)}%)`).join('\n');
+            showNotification(`匹配到 ${matched.length} 个进程`, names.substring(0, 100));
+        } else {
+            showNotification('没有匹配到进程', '请检查规则名称是否正确');
+        }
+    } catch (err) {
+        console.error('Failed to test rule:', err);
+        showNotification('测试失败', err.message || String(err));
+    }
+};
+
 window.showModal = function() {
+    editingRuleId = null;
     const modalEl = document.getElementById('modalOverlay');
+    const titleEl = document.getElementById('modalTitle');
+    const submitBtn = document.getElementById('modalSubmitBtn');
+
     if (modalEl) {
         modalEl.classList.add('active');
+        if (titleEl) titleEl.textContent = '添加自动终止规则';
+        if (submitBtn) submitBtn.textContent = '添加';
+
+        // 清空表单
         const nameInput = document.getElementById('ruleName');
-        if (nameInput) nameInput.focus();
+        const cpuInput = document.getElementById('ruleCpu');
+        const memInput = document.getElementById('ruleMemory');
+        const exactInput = document.getElementById('ruleExact');
+        if (nameInput) { nameInput.value = ''; nameInput.focus(); }
+        if (cpuInput) cpuInput.value = '50';
+        if (memInput) memInput.value = '0';
+        if (exactInput) exactInput.checked = false;
+    }
+};
+
+window.editRule = function(id) {
+    const rule = autoKillRules.find(r => r.id === id);
+    if (!rule) return;
+
+    editingRuleId = id;
+    const modalEl = document.getElementById('modalOverlay');
+    const titleEl = document.getElementById('modalTitle');
+    const submitBtn = document.getElementById('modalSubmitBtn');
+
+    if (modalEl) {
+        modalEl.classList.add('active');
+        if (titleEl) titleEl.textContent = '编辑规则';
+        if (submitBtn) submitBtn.textContent = '保存';
+
+        // 填充表单
+        const nameInput = document.getElementById('ruleName');
+        const cpuInput = document.getElementById('ruleCpu');
+        const memInput = document.getElementById('ruleMemory');
+        const exactInput = document.getElementById('ruleExact');
+        if (nameInput) { nameInput.value = rule.name; nameInput.focus(); }
+        if (cpuInput) cpuInput.value = rule.cpuThreshold || '0';
+        if (memInput) memInput.value = rule.memThreshold || '0';
+        if (exactInput) exactInput.checked = rule.exactMatch;
     }
 };
 
@@ -612,40 +688,43 @@ window.addRule = async function() {
     const cpuEl = document.getElementById('ruleCpu');
     const memEl = document.getElementById('ruleMemory');
     const exactEl = document.getElementById('ruleExact');
-    
+
     const name = nameEl?.value?.trim() || '';
     const cpu = parseFloat(cpuEl?.value) || 0;
     const mem = parseFloat(memEl?.value) || 0;
     const exactMatch = exactEl?.checked || false;
-    
+
     if (!name) {
         alert('请输入进程名称');
         return;
     }
-    
+
     try {
-        await AddAutoKillRule(name, cpu, mem, exactMatch);
-        await loadRules();
-        showNotification('规则已添加', name);
-        if (nameEl) nameEl.value = '';
-        if (cpuEl) cpuEl.value = '50';
-        if (memEl) memEl.value = '0';
-        if (exactEl) exactEl.checked = false;
+        if (editingRuleId) {
+            // 编辑模式
+            await UpdateAutoKillRule(editingRuleId, name, cpu, mem, exactMatch);
+            await loadRules();
+            showNotification('规则已更新', name);
+        } else {
+            // 添加模式
+            await AddAutoKillRule(name, cpu, mem, exactMatch);
+            await loadRules();
+            showNotification('规则已添加', name);
+        }
         window.hideModal();
     } catch (err) {
-        alert('添加规则失败: ' + err);
+        alert(editingRuleId ? '更新规则失败: ' + err : '添加规则失败: ' + err);
     }
 };
 
 window.removeRule = async function(id) {
-    if (!confirm('确定要删除此规则吗？')) return;
-    
     try {
         await RemoveAutoKillRule(id);
         await loadRules();
         showNotification('规则已删除', '');
     } catch (err) {
-        alert('删除规则失败: ' + err);
+        console.error('Failed to remove rule:', err);
+        showNotification('删除失败', err.message || String(err));
     }
 };
 
@@ -826,7 +905,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="modal-overlay" id="modalOverlay" onclick="window.hideModal(event)">
             <div class="modal" onclick="event.stopPropagation()">
                 <div class="modal-header">
-                    <h3 class="modal-title">添加自动终止规则</h3>
+                    <h3 class="modal-title" id="modalTitle">添加自动终止规则</h3>
                     <button class="modal-close" onclick="window.hideModal()">&times;</button>
                 </div>
                 <div class="modal-body">
@@ -844,14 +923,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <input type="number" class="form-input" id="ruleMemory" value="0" min="0" max="100">
                         </div>
                     </div>
+                    <div class="form-hint">CPU 或内存任一超过阈值即终止，设为 0 则不限制</div>
                     <label class="checkbox-field">
                         <input type="checkbox" id="ruleExact">
-                        <span>精确匹配进程名</span>
+                        <span>精确匹配进程名（不勾选则支持通配符）</span>
                     </label>
                 </div>
                 <div class="modal-footer">
                     <button class="btn-cancel" onclick="window.hideModal()">取消</button>
-                    <button class="btn-submit" onclick="window.addRule()">添加</button>
+                    <button class="btn-submit" id="modalSubmitBtn" onclick="window.addRule()">添加</button>
                 </div>
             </div>
         </div>

@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -50,13 +53,36 @@ type App struct {
 	autoKillRules []AutoKillRule
 	cpuSamples    map[int32]cpuSample
 	samplesMutex  sync.Mutex
+	rulesFile     string
 }
 
 func NewApp() *App {
-	return &App{
+	homeDir, _ := os.UserHomeDir()
+	rulesFile := filepath.Join(homeDir, ".procwatch_rules.json")
+
+	app := &App{
 		autoKillRules: make([]AutoKillRule, 0),
 		cpuSamples:    make(map[int32]cpuSample),
+		rulesFile:     rulesFile,
 	}
+	app.loadRulesFromFile()
+	return app
+}
+
+func (a *App) loadRulesFromFile() {
+	data, err := os.ReadFile(a.rulesFile)
+	if err != nil {
+		return
+	}
+	json.Unmarshal(data, &a.autoKillRules)
+}
+
+func (a *App) saveRulesToFile() {
+	data, err := json.MarshalIndent(a.autoKillRules, "", "  ")
+	if err != nil {
+		return
+	}
+	os.WriteFile(a.rulesFile, data, 0644)
 }
 
 func (a *App) startup(ctx context.Context) {
@@ -249,6 +275,7 @@ func (a *App) AddAutoKillRule(name string, cpuThreshold, memThreshold float64, e
 		Enabled:      true,
 	}
 	a.autoKillRules = append(a.autoKillRules, rule)
+	a.saveRulesToFile()
 	return rule
 }
 
@@ -256,6 +283,7 @@ func (a *App) RemoveAutoKillRule(id string) bool {
 	for i, rule := range a.autoKillRules {
 		if rule.ID == id {
 			a.autoKillRules = append(a.autoKillRules[:i], a.autoKillRules[i+1:]...)
+			a.saveRulesToFile()
 			return true
 		}
 	}
@@ -270,6 +298,21 @@ func (a *App) ToggleAutoKillRule(id string, enabled bool) bool {
 	for i := range a.autoKillRules {
 		if a.autoKillRules[i].ID == id {
 			a.autoKillRules[i].Enabled = enabled
+			a.saveRulesToFile()
+			return true
+		}
+	}
+	return false
+}
+
+func (a *App) UpdateAutoKillRule(id, name string, cpuThreshold, memThreshold float64, exactMatch bool) bool {
+	for i := range a.autoKillRules {
+		if a.autoKillRules[i].ID == id {
+			a.autoKillRules[i].Name = name
+			a.autoKillRules[i].CPUThreshold = cpuThreshold
+			a.autoKillRules[i].MemThreshold = memThreshold
+			a.autoKillRules[i].ExactMatch = exactMatch
+			a.saveRulesToFile()
 			return true
 		}
 	}
@@ -295,16 +338,23 @@ func (a *App) CheckAutoKillRules() []ProcessInfo {
 			if rule.ExactMatch {
 				matched = proc.Name == rule.Name
 			} else {
+				// 支持通配符 * 匹配
 				pattern := strings.ReplaceAll(regexp.QuoteMeta(rule.Name), "\\*", ".*")
 				matched, _ = regexp.MatchString("^"+pattern+"$", proc.Name)
 			}
 
 			if matched {
 				shouldKill := false
+				// CPU 或内存任一超过阈值即终止
 				if rule.CPUThreshold > 0 && proc.CPU >= rule.CPUThreshold {
 					shouldKill = true
 				}
 				if rule.MemThreshold > 0 && proc.Memory >= rule.MemThreshold {
+					shouldKill = true
+				}
+
+				// 如果 CPU 和内存阈值都为 0，只要匹配进程名就终止
+				if rule.CPUThreshold == 0 && rule.MemThreshold == 0 {
 					shouldKill = true
 				}
 
@@ -318,6 +368,30 @@ func (a *App) CheckAutoKillRules() []ProcessInfo {
 	}
 
 	return killed
+}
+
+// TestAutoKillRule 测试规则是否能匹配到进程（用于调试）
+func (a *App) TestAutoKillRule(ruleName string, exactMatch bool) []ProcessInfo {
+	var matched []ProcessInfo
+
+	procs := a.GetProcesses()
+
+	for _, proc := range procs {
+		isMatched := false
+		if exactMatch {
+			isMatched = proc.Name == ruleName
+		} else {
+			// 支持通配符 * 匹配
+			pattern := strings.ReplaceAll(regexp.QuoteMeta(ruleName), "\\*", ".*")
+			isMatched, _ = regexp.MatchString("^"+pattern+"$", proc.Name)
+		}
+
+		if isMatched {
+			matched = append(matched, proc)
+		}
+	}
+
+	return matched
 }
 
 func (a *App) SearchProcesses(query string) []ProcessInfo {

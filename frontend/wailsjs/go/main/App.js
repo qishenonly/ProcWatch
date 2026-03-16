@@ -50,6 +50,14 @@ export function SearchProcesses(arg1) {
   return window['go']['main']['App']['SearchProcesses'](arg1);
 }
 
+export function TestAutoKillRule(arg1, arg2) {
+  return window['go']['main']['App']['TestAutoKillRule'](arg1, arg2);
+}
+
 export function ToggleAutoKillRule(arg1, arg2) {
   return window['go']['main']['App']['ToggleAutoKillRule'](arg1, arg2);
+}
+
+export function UpdateAutoKillRule(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['UpdateAutoKillRule'](arg1, arg2, arg3, arg4, arg5);
 }
