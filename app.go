@@ -54,6 +54,10 @@ type App struct {
 	cpuSamples    map[int32]cpuSample
 	samplesMutex  sync.Mutex
 	rulesFile     string
+	// 缓存进程数据，避免重复获取
+	cachedProcesses []ProcessInfo
+	cacheMutex      sync.RWMutex
+	lastCacheTime   time.Time
 }
 
 func NewApp() *App {
@@ -90,9 +94,17 @@ func (a *App) startup(ctx context.Context) {
 }
 
 func (a *App) GetProcesses() []ProcessInfo {
+	// 使用缓存：如果距离上次获取不到1秒，直接返回缓存数据
+	a.cacheMutex.RLock()
+	if time.Since(a.lastCacheTime) < time.Second && a.cachedProcesses != nil {
+		a.cacheMutex.RUnlock()
+		return a.cachedProcesses
+	}
+	a.cacheMutex.RUnlock()
+
 	procs, err := process.Processes()
 	if err != nil {
-		return []ProcessInfo{}
+		return a.cachedProcesses // 返回旧缓存
 	}
 
 	a.samplesMutex.Lock()
@@ -187,11 +199,24 @@ func (a *App) GetProcesses() []ProcessInfo {
 		}
 	}
 
+	// 更新缓存
+	a.cacheMutex.Lock()
+	a.cachedProcesses = processes
+	a.lastCacheTime = now
+	a.cacheMutex.Unlock()
+
 	return processes
 }
 
 func (a *App) GetSystemStats() SystemStats {
-	procs := a.GetProcesses()
+	// 使用缓存的进程数据
+	a.cacheMutex.RLock()
+	procs := a.cachedProcesses
+	a.cacheMutex.RUnlock()
+
+	if procs == nil {
+		procs = a.GetProcesses()
+	}
 
 	var totalCPU, totalMem float64
 	var highCPUCount int
@@ -326,7 +351,14 @@ func (a *App) CheckAutoKillRules() []ProcessInfo {
 		return killed
 	}
 
-	procs := a.GetProcesses()
+	// 使用缓存的进程数据
+	a.cacheMutex.RLock()
+	procs := a.cachedProcesses
+	a.cacheMutex.RUnlock()
+
+	if procs == nil {
+		procs = a.GetProcesses()
+	}
 
 	for _, rule := range a.autoKillRules {
 		if !rule.Enabled {
@@ -374,7 +406,14 @@ func (a *App) CheckAutoKillRules() []ProcessInfo {
 func (a *App) TestAutoKillRule(ruleName string, exactMatch bool) []ProcessInfo {
 	var matched []ProcessInfo
 
-	procs := a.GetProcesses()
+	// 使用缓存的进程数据
+	a.cacheMutex.RLock()
+	procs := a.cachedProcesses
+	a.cacheMutex.RUnlock()
+
+	if procs == nil {
+		procs = a.GetProcesses()
+	}
 
 	for _, proc := range procs {
 		isMatched := false

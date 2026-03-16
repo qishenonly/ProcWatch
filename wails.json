@@ -9,5 +9,12 @@
   "author": {
     "name": "godqi",
     "email": "1050026498@qq.com"
+  },
+  "info": {
+    "companyName": "godqi",
+    "productName": "ProcWatch",
+    "productVersion": "1.0.0",
+    "copyright": "Copyright © 2026 godqi",
+    "comments": "Process Monitor Application"
   }
 }
