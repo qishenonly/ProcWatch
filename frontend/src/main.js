@@ -12,7 +12,10 @@ import {
     CheckAutoKillRules,
     ConfirmKill,
     ConfirmKillSelected,
-    TestAutoKillRule
+    TestAutoKillRule,
+    GetAppVersion,
+    CheckForUpdate,
+    OpenDownloadPage
 } from '../wailsjs/go/main/App';
 
 const avatarColors = [
@@ -750,6 +753,103 @@ window.sortBy = function(field) {
     renderCurrentView();
 };
 
+// ========== 自动更新功能 ==========
+
+let appVersion = '';
+
+window.checkForUpdate = async function() {
+    const modal = document.getElementById('updateModal');
+    const body = document.getElementById('updateModalBody');
+
+    if (modal) modal.classList.add('active');
+
+    try {
+        const result = await CheckForUpdate();
+
+        if (result.error) {
+            body.innerHTML = `
+                <div class="update-error">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent-warm)" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="8" x2="12" y2="12"/>
+                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    <h4>检查更新失败</h4>
+                    <p>${result.error}</p>
+                </div>
+            `;
+            return;
+        }
+
+        if (result.hasUpdate) {
+            body.innerHTML = `
+                <div class="update-available">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cool)" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    <h4>发现新版本!</h4>
+                    <p class="version-compare">当前: v${result.currentVer} → 最新: v${result.latestVer}</p>
+                    <div class="release-notes">
+                        <strong>更新内容:</strong>
+                        <p>${result.releaseNotes || '查看 Release 页面了解详情'}</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="window.downloadUpdate('${result.downloadUrl}')">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        下载更新
+                    </button>
+                </div>
+            `;
+            // 显示更新提示
+            const badge = document.getElementById('updateBadge');
+            if (badge) badge.style.display = 'inline';
+        } else {
+            body.innerHTML = `
+                <div class="update-latest">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cool)" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+                        <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                    <h4>已是最新版本</h4>
+                    <p>当前版本: v${result.currentVer}</p>
+                </div>
+            `;
+        }
+    } catch (err) {
+        body.innerHTML = `
+            <div class="update-error">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent-warm)" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <h4>检查更新失败</h4>
+                <p>${err.message || String(err)}</p>
+            </div>
+        `;
+    }
+};
+
+window.hideUpdateModal = function(e) {
+    if (!e || e.target.id === 'updateModal') {
+        const modal = document.getElementById('updateModal');
+        if (modal) modal.classList.remove('active');
+    }
+};
+
+window.downloadUpdate = async function(url) {
+    try {
+        await OpenDownloadPage(url);
+    } catch (err) {
+        window.open(url, '_blank');
+    }
+};
+
 document.addEventListener('DOMContentLoaded', async () => {
     document.querySelector('#app').innerHTML = `
         <div class="bg-decoration">
@@ -897,10 +997,30 @@ document.addEventListener('DOMContentLoaded', async () => {
                 刷新间隔: <span class="status-highlight">5秒</span>
             </div>
             <div class="status-spacer"></div>
+            <div class="status-item version-info" onclick="window.checkForUpdate()" title="点击检查更新">
+                v<span id="appVersion">-</span>
+                <span class="update-badge" id="updateBadge" style="display: none;">有更新</span>
+            </div>
             <div class="status-item">
                 显示 <span class="status-highlight" id="processCount">0</span> 个进程
             </div>
         </footer>
+
+        <!-- 更新提示弹窗 -->
+        <div class="modal-overlay" id="updateModal" onclick="window.hideUpdateModal(event)">
+            <div class="modal update-modal" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <h3 class="modal-title" id="updateModalTitle">检查更新</h3>
+                    <button class="modal-close" onclick="window.hideUpdateModal()">&times;</button>
+                </div>
+                <div class="modal-body" id="updateModalBody">
+                    <div class="update-loading">
+                        <div class="loading-spinner"></div>
+                        <p>正在检查更新...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <div class="modal-overlay" id="modalOverlay" onclick="window.hideModal(event)">
             <div class="modal" onclick="event.stopPropagation()">
@@ -940,7 +1060,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadProcesses();
     await loadStats();
     await loadRules();
-    
+
+    // 加载版本信息
+    try {
+        const versionInfo = await GetAppVersion();
+        appVersion = versionInfo.version;
+        const versionEl = document.getElementById('appVersion');
+        if (versionEl) versionEl.textContent = appVersion;
+    } catch (err) {
+        console.error('Failed to get app version:', err);
+    }
+
+    // 启动时后台检查更新（静默）
+    setTimeout(async () => {
+        try {
+            const result = await CheckForUpdate();
+            if (result.hasUpdate) {
+                const badge = document.getElementById('updateBadge');
+                if (badge) badge.style.display = 'inline';
+            }
+        } catch (err) {
+            // 静默失败，不显示错误
+        }
+    }, 3000);
+
     document.getElementById('hideSystemToggle')?.addEventListener('click', window.toggleHideSystem);
     document.getElementById('autoKillToggle')?.addEventListener('click', window.toggleAutoKill);
     document.getElementById('showNotificationsToggle')?.addEventListener('click', window.toggleNotifications);

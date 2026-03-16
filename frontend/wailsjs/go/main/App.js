@@ -10,6 +10,10 @@ export function CheckAutoKillRules() {
   return window['go']['main']['App']['CheckAutoKillRules']();
 }
 
+export function CheckForUpdate() {
+  return window['go']['main']['App']['CheckForUpdate']();
+}
+
 export function ConfirmKill(arg1, arg2) {
   return window['go']['main']['App']['ConfirmKill'](arg1, arg2);
 }
@@ -20,6 +24,10 @@ export function ConfirmKillSelected(arg1) {
 
 export function FilterProcesses(arg1, arg2, arg3) {
   return window['go']['main']['App']['FilterProcesses'](arg1, arg2, arg3);
+}
+
+export function GetAppVersion() {
+  return window['go']['main']['App']['GetAppVersion']();
 }
 
 export function GetAutoKillRules() {
@@ -40,6 +48,10 @@ export function KillProcess(arg1) {
 
 export function KillProcesses(arg1) {
   return window['go']['main']['App']['KillProcesses'](arg1);
+}
+
+export function OpenDownloadPage(arg1) {
+  return window['go']['main']['App']['OpenDownloadPage'](arg1);
 }
 
 export function RemoveAutoKillRule(arg1) {

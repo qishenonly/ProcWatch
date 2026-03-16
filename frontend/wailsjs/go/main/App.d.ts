@@ -6,11 +6,15 @@ export function AddAutoKillRule(arg1:string,arg2:number,arg3:number,arg4:boolean
 
 export function CheckAutoKillRules():Promise<Array<main.ProcessInfo>>;
 
+export function CheckForUpdate():Promise<main.UpdateCheckResult>;
+
 export function ConfirmKill(arg1:string,arg2:number):Promise<boolean>;
 
 export function ConfirmKillSelected(arg1:number):Promise<boolean>;
 
 export function FilterProcesses(arg1:number,arg2:number,arg3:boolean):Promise<Array<main.ProcessInfo>>;
+
+export function GetAppVersion():Promise<Record<string, string>>;
 
 export function GetAutoKillRules():Promise<Array<main.AutoKillRule>>;
 
@@ -21,6 +25,8 @@ export function GetSystemStats():Promise<main.SystemStats>;
 export function KillProcess(arg1:number):Promise<void>;
 
 export function KillProcesses(arg1:Array<number>):Promise<Record<number, string>>;
+
+export function OpenDownloadPage(arg1:string):Promise<void>;
 
 export function RemoveAutoKillRule(arg1:string):Promise<boolean>;
 

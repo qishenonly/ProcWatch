@@ -1492,23 +1492,23 @@ input[type="checkbox"] {
     .sidebar {
         display: none;
     }
-    
+
     .process-table th:nth-child(4),
     .process-table td:nth-child(4),
     .process-table th:nth-child(6),
     .process-table td:nth-child(6) {
         display: none;
     }
-    
+
     .toolbar {
         padding: 0 12px;
         gap: 8px;
     }
-    
+
     .table-wrapper {
         padding: 12px;
     }
-    
+
     .detail-panel {
         position: fixed;
         right: 0;
@@ -1516,4 +1516,104 @@ input[type="checkbox"] {
         bottom: 0;
         z-index: 100;
     }
+}
+
+/* ========== 更新相关样式 ========== */
+
+.version-info {
+    cursor: pointer;
+    transition: all 150ms ease;
+}
+
+.version-info:hover {
+    color: var(--accent-hot);
+}
+
+.update-badge {
+    background: linear-gradient(135deg, var(--accent-hot), var(--accent-pink));
+    color: white;
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: var(--radius-full);
+    margin-left: 6px;
+    font-weight: 600;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.update-modal {
+    max-width: 420px;
+}
+
+.update-loading,
+.update-available,
+.update-latest,
+.update-error {
+    text-align: center;
+    padding: 20px;
+}
+
+.update-loading p {
+    margin-top: 12px;
+    color: var(--text-secondary);
+}
+
+.update-available h4,
+.update-latest h4,
+.update-error h4 {
+    margin-top: 16px;
+    font-size: 18px;
+    color: var(--text-primary);
+}
+
+.update-available p,
+.update-latest p,
+.update-error p {
+    margin-top: 8px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.version-compare {
+    background: rgba(0, 212, 170, 0.1);
+    padding: 8px 16px;
+    border-radius: var(--radius-full);
+    display: inline-block;
+    margin-top: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+}
+
+.release-notes {
+    background: var(--bg-subtle);
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+    margin: 16px 0;
+    text-align: left;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.release-notes strong {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.release-notes p {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+.update-available .btn {
+    margin-top: 8px;
 }

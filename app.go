@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -15,6 +16,14 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/shirou/gopsutil/v3/process"
+)
+
+// 版本信息，构建时可通过 ldflags 注入
+var (
+	AppVersion = "1.1.0"
+	BuildTime  = "unknown"
+	GitCommit  = "unknown"
+	GitHubRepo = "qishenonly/ProcWatch" // 替换为你的 GitHub 仓库
 )
 
 type ProcessInfo struct {
@@ -472,4 +481,150 @@ func (a *App) FilterProcesses(minCPU, minMem float64, hideSystem bool) []Process
 	}
 
 	return results
+}
+
+// ========== 自动更新相关 ==========
+
+type ReleaseInfo struct {
+	TagName     string `json:"tag_name"`
+	Name        string `json:"name"`
+	Body        string `json:"body"`
+	HtmlUrl     string `json:"html_url"`
+	PublishedAt string `json:"published_at"`
+	Assets      []struct {
+		Name               string `json:"name"`
+		BrowserDownloadUrl string `json:"browser_download_url"`
+	} `json:"assets"`
+}
+
+type UpdateCheckResult struct {
+	HasUpdate    bool   `json:"hasUpdate"`
+	CurrentVer   string `json:"currentVer"`
+	LatestVer    string `json:"latestVer"`
+	DownloadUrl  string `json:"downloadUrl"`
+	ReleaseNotes string `json:"releaseNotes"`
+	ReleaseUrl   string `json:"releaseUrl"`
+	Error        string `json:"error,omitempty"`
+}
+
+// GetAppVersion 获取当前应用版本
+func (a *App) GetAppVersion() map[string]string {
+	return map[string]string{
+		"version":   AppVersion,
+		"buildTime": BuildTime,
+		"gitCommit": GitCommit,
+	}
+}
+
+// CheckForUpdate 检查是否有新版本
+func (a *App) CheckForUpdate() UpdateCheckResult {
+	result := UpdateCheckResult{
+		CurrentVer: AppVersion,
+	}
+
+	// 获取 GitHub 最新 Release
+	url := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", GitHubRepo)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get(url)
+	if err != nil {
+		result.Error = "无法连接更新服务器: " + err.Error()
+		return result
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		result.Error = fmt.Sprintf("更新服务器返回错误: %d", resp.StatusCode)
+		return result
+	}
+
+	var release ReleaseInfo
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		result.Error = "解析更新信息失败"
+		return result
+	}
+
+	// 解析版本号
+	latestVer := strings.TrimPrefix(release.TagName, "v")
+	result.LatestVer = latestVer
+	result.ReleaseNotes = release.Body
+	result.ReleaseUrl = release.HtmlUrl
+
+	// 比较版本
+	if a.compareVersions(AppVersion, latestVer) < 0 {
+		result.HasUpdate = true
+		// 根据平台选择下载链接
+		result.DownloadUrl = a.getDownloadUrl(release.Assets)
+	}
+
+	return result
+}
+
+// compareVersions 比较版本号，返回 -1, 0, 1
+func (a *App) compareVersions(v1, v2 string) int {
+	parts1 := strings.Split(v1, ".")
+	parts2 := strings.Split(v2, ".")
+
+	maxLen := len(parts1)
+	if len(parts2) > maxLen {
+		maxLen = len(parts2)
+	}
+
+	for i := 0; i < maxLen; i++ {
+		var n1, n2 int
+		if i < len(parts1) {
+			n1, _ = strconv.Atoi(parts1[i])
+		}
+		if i < len(parts2) {
+			n2, _ = strconv.Atoi(parts2[i])
+		}
+
+		if n1 < n2 {
+			return -1
+		} else if n1 > n2 {
+			return 1
+		}
+	}
+	return 0
+}
+
+// getDownloadUrl 根据当前平台获取下载链接
+func (a *App) getDownloadUrl(assets []struct {
+	Name               string `json:"name"`
+	BrowserDownloadUrl string `json:"browser_download_url"`
+}) string {
+	var target string
+
+	// 检测当前平台
+	goos := runtime.Environment(a.ctx).Platform
+	arch := runtime.Environment(a.ctx).Arch
+
+	switch goos {
+	case "darwin":
+		if arch == "arm64" {
+			target = "darwin-arm64"
+		} else {
+			target = "darwin-amd64"
+		}
+		// 优先选择 DMG
+		for _, asset := range assets {
+			if strings.Contains(asset.Name, target) && strings.HasSuffix(asset.Name, ".dmg") {
+				return asset.BrowserDownloadUrl
+			}
+		}
+	case "windows":
+		for _, asset := range assets {
+			if strings.Contains(asset.Name, "windows") && (strings.HasSuffix(asset.Name, ".exe") || strings.HasSuffix(asset.Name, ".zip")) {
+				return asset.BrowserDownloadUrl
+			}
+		}
+	}
+
+	// 返回 Release 页面
+	return fmt.Sprintf("https://github.com/%s/releases/latest", GitHubRepo)
+}
+
+// OpenDownloadPage 打开下载页面
+func (a *App) OpenDownloadPage(url string) {
+	runtime.BrowserOpenURL(a.ctx, url)
 }

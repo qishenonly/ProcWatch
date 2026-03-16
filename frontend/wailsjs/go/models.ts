@@ -64,6 +64,30 @@ export namespace main {
 	        this.avgMemory = source["avgMemory"];
 	    }
 	}
+	export class UpdateCheckResult {
+	    hasUpdate: boolean;
+	    currentVer: string;
+	    latestVer: string;
+	    downloadUrl: string;
+	    releaseNotes: string;
+	    releaseUrl: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateCheckResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.hasUpdate = source["hasUpdate"];
+	        this.currentVer = source["currentVer"];
+	        this.latestVer = source["latestVer"];
+	        this.downloadUrl = source["downloadUrl"];
+	        this.releaseNotes = source["releaseNotes"];
+	        this.releaseUrl = source["releaseUrl"];
+	        this.error = source["error"];
+	    }
+	}
 
 }
 

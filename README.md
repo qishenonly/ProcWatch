@@ -271,7 +271,7 @@ wails build -platform darwin/amd64,darwin/arm64,windows/amd64
 
 ## 📝 更新日志
 
-### v1.0.0 (2026-03-16)
+### v1.1.0 (2026-03-16)
 
 - ✨ 初始版本发布
 - ✅ 进程实时监控
