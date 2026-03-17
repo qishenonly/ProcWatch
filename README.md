@@ -276,7 +276,7 @@ wails build -platform darwin/amd64,darwin/arm64,windows/amd64
 - 🐛 修复检查更新时 GitHub API 返回 403 错误的问题（添加 User-Agent 请求头）
 - 🔧 项目迁移至 [NexusToolsLab/ProcWatch](https://github.com/NexusToolsLab/ProcWatch)
 
-### v1.1.0 (2026-03-16)
+### v1.1.1 (2026-03-16)
 
 - ✨ 初始版本发布
 - ✅ 进程实时监控
