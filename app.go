@@ -20,7 +20,7 @@ import (
 
 // 版本信息，构建时可通过 ldflags 注入
 var (
-	AppVersion = "1.1.0"
+	AppVersion = "1.1.1"
 	BuildTime  = "unknown"
 	GitCommit  = "unknown"
 	GitHubRepo = "NexusToolsLab/ProcWatch"
