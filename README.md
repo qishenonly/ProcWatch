@@ -99,7 +99,7 @@
 
 ### 从 Release 下载
 
-前往 [Releases](https://github.com/你的用户名/ProcWatch/releases) 页面下载对应平台的安装包：
+前往 [Releases](https://github.com/NexusToolsLab/ProcWatch/releases) 页面下载对应平台的安装包：
 
 - **macOS**: `ProcWatch-x.x.x.dmg` 或 `ProcWatch-x.x.x.zip`
 - **Windows**: `ProcWatch-x.x.x-installer.exe`
@@ -117,7 +117,7 @@
 go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
 # 克隆项目
-git clone https://github.com/你的用户名/ProcWatch.git
+git clone https://github.com/NexusToolsLab/ProcWatch.git
 cd ProcWatch
 
 # 安装前端依赖
@@ -296,5 +296,5 @@ wails build -platform darwin/amd64,darwin/arm64,windows/amd64
 ---
 
 <p align="center">
-  Made with ❤️ by <a href="https://github.com/godqi">godqi</a>
+  Made with ❤️ by <a href="https://github.com/NexusToolsLab">NexusToolsLab</a>
 </p>

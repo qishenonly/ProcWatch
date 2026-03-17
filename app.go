@@ -23,7 +23,7 @@ var (
 	AppVersion = "1.1.0"
 	BuildTime  = "unknown"
 	GitCommit  = "unknown"
-	GitHubRepo = "qishenonly/ProcWatch" // 替换为你的 GitHub 仓库
+	GitHubRepo = "NexusToolsLab/ProcWatch"
 )
 
 type ProcessInfo struct {
@@ -526,7 +526,15 @@ func (a *App) CheckForUpdate() UpdateCheckResult {
 	url := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", GitHubRepo)
 
 	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		result.Error = "创建请求失败: " + err.Error()
+		return result
+	}
+	// GitHub API 要求设置 User-Agent
+	req.Header.Set("User-Agent", fmt.Sprintf("ProcWatch/%s", AppVersion))
+
+	resp, err := client.Do(req)
 	if err != nil {
 		result.Error = "无法连接更新服务器: " + err.Error()
 		return result

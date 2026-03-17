@@ -1,6 +1,7 @@
 build/bin
 node_modules
 frontend/dist
+docs/article/
 
 # Dependencies
 node_modules/

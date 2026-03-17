@@ -100,7 +100,7 @@ clean_build() {
 build_darwin_amd64() {
     echo ""
     echo "📦 构建 macOS (Intel) amd64..."
-    wails build -platform darwin/amd64 -clean -ldflags "${LDFLAGS}"
+    wails build -platform darwin/amd64 -ldflags "${LDFLAGS}"
     if [ $? -eq 0 ]; then
         echo "✅ macOS amd64 构建成功"
         # 创建 DMG
@@ -115,7 +115,7 @@ build_darwin_amd64() {
 build_darwin_arm64() {
     echo ""
     echo "📦 构建 macOS (Apple Silicon) arm64..."
-    wails build -platform darwin/arm64 -clean -ldflags "${LDFLAGS}"
+    wails build -platform darwin/arm64 -ldflags "${LDFLAGS}"
     if [ $? -eq 0 ]; then
         echo "✅ macOS arm64 构建成功"
         # 创建 DMG
@@ -130,7 +130,7 @@ build_darwin_arm64() {
 build_windows() {
     echo ""
     echo "📦 构建 Windows amd64..."
-    wails build -platform windows/amd64 -clean -ldflags "${LDFLAGS}"
+    wails build -platform windows/amd64 -ldflags "${LDFLAGS}"
     if [ $? -eq 0 ]; then
         echo "✅ Windows 构建成功"
         # 创建 ZIP
